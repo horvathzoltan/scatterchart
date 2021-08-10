@@ -51,6 +51,7 @@ public:
     //void clear_color_serie();
     void setRange(const QRect& r);
     void initRange();
+    MainViewModel::Load load();
 signals:
         void LoadActionTriggered(IMainView *sender);
         void SaveSelectedActionTriggered(IMainView *sender);

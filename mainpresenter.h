@@ -26,8 +26,8 @@ private:
 
 private:
     QList<IMainView*> _views;
-    QList<MainViewModel::Rgb> LoadFcs2(const QString &folder);
-    QList<MainViewModel::Rgb> LoadFcs();
+    QList<MainViewModel::Rgb> LoadFcs2(const QString &folder,const MainViewModel::Load& m);
+    QList<MainViewModel::Rgb> LoadFcs(const MainViewModel::Load& m);
 private slots:
     void processLoadAction(IMainView *sender);
     void processSaveSelectedAction(IMainView *sender);

@@ -75,8 +75,9 @@ void MainPresenter::initView(IMainView *w) const
 /*load*/
 void MainPresenter::processLoadAction(IMainView *sender)
 {
+    MainViewModel::Load r = sender->load();
 
-    QList<struct MainViewModel::Rgb> m = LoadFcs();
+    QList<struct MainViewModel::Rgb> m = LoadFcs(r);
     MainViewModel::ColorSerie vm = MainViewModel::ColorSerie::fromFriendlyRGB(m);
     sender->set_color_serie(vm);
 }
@@ -106,7 +107,7 @@ void MainPresenter::processSaveSelectedAction(IMainView *sender)
 }
 
 
-auto MainPresenter::LoadFcs() -> QList<MainViewModel::Rgb>{
+auto MainPresenter::LoadFcs(const MainViewModel::Load& m) -> QList<MainViewModel::Rgb>{
     QString filename = QFileDialog::getOpenFileName(
         nullptr,
         QStringLiteral("Open file"),
@@ -115,10 +116,10 @@ auto MainPresenter::LoadFcs() -> QList<MainViewModel::Rgb>{
         );
     settings.fcspath = filename;
 
-    return LoadFcs2(filename);
+    return LoadFcs2(filename, m);
 }
 
-auto MainPresenter::LoadFcs2(const QString& filename)->QList<MainViewModel::Rgb>{
+auto MainPresenter::LoadFcs2(const QString& filename, const MainViewModel::Load& m)->QList<MainViewModel::Rgb>{
     QList<MainViewModel::Rgb> data;
 
     if(!QFileInfo(filename).exists()) return {};
@@ -127,11 +128,19 @@ auto MainPresenter::LoadFcs2(const QString& filename)->QList<MainViewModel::Rgb>
     for(auto&line:lines){
         if(line.isEmpty()) continue;
         if(line.startsWith(' ')) continue;
-        bool ok;
-        auto fc = FriendlyRGB::FromCSV(line, FriendlyRGB::CsvType::hex, &ok);
-        auto rgb = MainViewModel::Rgb::fromFriendlyRGB(fc);
-        //auto fi = FriendlyRGB::ToFriendlyInt(fc.r, fc.g, fc.b);
-        data.append(rgb);
+        bool isPlus=false;
+        QString line2 = line;
+        if(line2.endsWith('+')){
+            line2= line2.left(line2.length()-1);
+            isPlus = true;
+        }
+        if((isPlus&&m.plus) || (!isPlus&&m.minus)){
+            bool ok;
+            auto fc = FriendlyRGB::FromCSV(line2, FriendlyRGB::CsvType::hex, &ok);
+            auto rgb = MainViewModel::Rgb::fromFriendlyRGB(fc);
+            //auto fi = FriendlyRGB::ToFriendlyInt(fc.r, fc.g, fc.b);
+            data.append(rgb);
+        }
     }
     return data;
 }

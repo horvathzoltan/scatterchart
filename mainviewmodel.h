@@ -9,6 +9,11 @@
 class MainViewModel
 {
 public:
+    struct Load{
+        bool plus;
+        bool minus;
+    };
+
     struct Lab{
         double l;
         double a;

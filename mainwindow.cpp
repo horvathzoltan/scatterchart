@@ -280,6 +280,16 @@ void MainWindow::initRange()
 {
     setRange(_null_rect);
 }
+
+MainViewModel::Load MainWindow::load()
+{
+    if(ui->radioButton_all->isChecked()) return {true,true};
+    return {
+        ui->radioButton_plus->isChecked(),
+        ui->radioButton_minus->isChecked()
+    };
+}
+
 void MainWindow::on_radioButton_0_clicked(bool checked)
 {
     if(checked) initRange();
