@@ -21,9 +21,26 @@ public:
     MainViewModel::ColorSerie GetRYBSerieWM() const;
     MainViewModel::ColorSerie GetRGBSerieWM() const;
     void initView(IMainView *w) const;
+    QString FcFileNameToMarkerName(const QString &fc);
+    int FcFileNameToMarkerId(const QString &fc);
+
 private:
     void refreshView(IMainView *w) const;
 
+    int GetMarkerIdByName(const QString &mn);
+    struct SQLFc{
+        FriendlyRGB rgb;
+        QString colorint;
+        int flag;
+    };
+    bool InsertMarkerColor(int markerId,const QList<SQLFc>& fcs);
+    bool DeleteMarkerColors(int markerId);
+    int GetMarkerCorrectionId(int markerId);
+    bool InsertMarkerCorrection(int markerId,
+                           const QString& name,
+                           const QString& comments);
+    bool DeleteMarkerCorrectionItems(int markerCorrectionId);
+    bool InsertMarkerCorrectionItems(int markerCorrectionId,const QList<SQLFc>& fcs);
 private:
     QList<IMainView*> _views;
     QList<MainViewModel::Rgb> LoadFcs2(const QString &folder,const MainViewModel::Load& m);
@@ -31,6 +48,7 @@ private:
 private slots:
     void processLoadAction(IMainView *sender);
     void processSaveSelectedAction(IMainView *sender);
+    void processSQLUpdAction(IMainView *sender);
 };
 
 #endif // MAINPRESENTER_H

@@ -3,6 +3,7 @@
 
 #include <QList>
 #include <qstring.h>
+#include "sqlhelper.h"
 
 class Settings
 {
@@ -17,7 +18,6 @@ private:
     static const QString KEY_fcspath;
     //static const QString KEY_unfcspath;
     static const QString KEY_tracking_radius;
-
 public:        
     Settings();
 
@@ -33,6 +33,8 @@ public:
 
     bool Load();
     bool Save();
+
+     SQLHelper::SQLSettings _sql_settings;
 };
 
 #endif // SETTINGS_H

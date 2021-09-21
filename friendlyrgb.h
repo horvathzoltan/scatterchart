@@ -87,6 +87,11 @@ public:
         return QString("%1,%2,%3").arg(r).arg(g).arg(b);
     };
 
+    auto toDecString() -> const QString {
+        int i = 255<<24|r<<16|g<<8|b;
+        return QString::number(i);
+    };
+
     static int ToFriendlyInt(int i);
 
     static FriendlyRGB FromFriendlyInt(int i);

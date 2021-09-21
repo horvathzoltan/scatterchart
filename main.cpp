@@ -9,6 +9,13 @@ Settings settings;
 
 auto main(int argc, char *argv[]) -> int
 {
+    settings._sql_settings = {
+        "QODBC",
+        "MasterMove_Examination_Development",
+        {{"office.logcontrol.hu", 9876}, {"172.16.1.5", 1433}},
+        "sa",
+        "Gtr7jv8fh2"
+    };
     QApplication a(argc, argv);
 
     MainWindow w;

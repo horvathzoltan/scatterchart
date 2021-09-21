@@ -55,6 +55,7 @@ public:
 signals:
         void LoadActionTriggered(IMainView *sender);
         void SaveSelectedActionTriggered(IMainView *sender);
+        void SQLUpdActionTriggered(IMainView *sender);
 private slots:
     void on_pushButton_clear_clicked();
     void on_pushButton_load_clicked();
@@ -74,6 +75,8 @@ private slots:
     void on_radioButton_3_clicked(bool checked);
 
     void on_radioButton_4_clicked(bool checked);
+
+    void on_pushButton_sqlupd_clicked();
 
 private:
     static const int MAX = 120;

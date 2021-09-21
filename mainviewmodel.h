@@ -62,8 +62,7 @@ public:
             for(auto&i:m) r.items.append(ColorSerieItem::fromRgb(i));
             return r;
         }
-    };
-
+    };        
 
 };
 

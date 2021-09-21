@@ -9,6 +9,11 @@
 #include <QFileDialog>
 #include <QDateTime>
 
+#include <QSqlDatabase>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QDebug>
+
 extern Settings settings;
 MainPresenter::MainPresenter(QObject *parent) :QObject(parent)
 {
@@ -28,6 +33,10 @@ void MainPresenter::appendView(IMainView *w)
     QObject::connect(view_obj, SIGNAL(SaveSelectedActionTriggered(IMainView *)),
                      this, SLOT(processSaveSelectedAction(IMainView *)));
 
+    QObject::connect(view_obj, SIGNAL(SQLUpdActionTriggered(IMainView *)),
+                     this, SLOT(processSQLUpdAction(IMainView *)));
+
+    //SaveSelectedActionTriggeredprocessSaveSelectedActionTriggered
 //    QObject::connect(&(*view_obj), &IMainView::LoadActionTriggered,
 //                     this, &MainPresenter::processLoadAction);
     refreshView(w);
@@ -107,6 +116,7 @@ void MainPresenter::processSaveSelectedAction(IMainView *sender)
 }
 
 
+
 auto MainPresenter::LoadFcs(const MainViewModel::Load& m) -> QList<MainViewModel::Rgb>{
     QString filename = QFileDialog::getOpenFileName(
         nullptr,
@@ -142,5 +152,476 @@ auto MainPresenter::LoadFcs2(const QString& filename, const MainViewModel::Load&
             data.append(rgb);
         }
     }
+    //_fileName = filename;
     return data;
+}
+
+//////////////// SQL
+// a megjelenített fájl fc és ufc párját olvassa be és írja ki
+
+void MainPresenter::processSQLUpdAction(IMainView *sender){
+    qDebug() << "processSQLUpdAction";
+    QString fullPath = settings.fcspath;
+
+    QFileInfo f(fullPath);
+    auto path = f.path();
+    auto f1 = f.filePath();
+    auto f2 = f.fileName();
+    auto filename = f.completeBaseName();
+    auto suffix = f.completeSuffix();
+
+    qDebug() << "path: "+path;
+    qDebug() << "f1: "+f1;
+    qDebug() << "f2: "+f2;
+    qDebug() << "filename: "+filename;
+    qDebug() << "suffix: "+suffix;
+    qDebug() << "----";
+
+    QString fcfilename;
+    QString ufcfilename;
+    if(filename.startsWith("fc")){
+        fcfilename=filename;
+        ufcfilename='u'+filename;
+    }
+    else if(filename.startsWith("ufc")){
+        fcfilename = filename.mid(1);
+        ufcfilename=filename;
+    }
+
+    QFileInfo fcFileInfo(path+'/'+fcfilename+'.'+suffix);
+    QFileInfo ufcFileInfo(path+'/'+ufcfilename+'.'+suffix);
+
+    qDebug() << "loading..";
+    qDebug() << "ufcFile:"+ufcFileInfo.filePath();
+
+    //QFile fcFile(fcFullPath);
+    //fcFile.file
+    //mentés - először az első ötöt
+    //auto m = sender->get_selected_color_serie();
+
+    QList<SQLFc> fcs;
+    if(fcFileInfo.exists()){
+        qDebug() << "fcFile:"+fcFileInfo.filePath();
+        auto lines = FileHelper::LoadText(fcFileInfo.filePath());
+        if(!lines.isEmpty()){
+            for(auto&line:lines){
+                if(line.isEmpty()) continue;
+                if(line.startsWith(' ')) continue;
+                bool ok;
+                auto fc = FriendlyRGB::FromCSV(line, FriendlyRGB::CsvType::hex, &ok);
+                fcs.append({fc,0,0});
+            }
+        }
+    }
+
+    QList<SQLFc> ufcs;
+    if(ufcFileInfo.exists()){
+        qDebug() << "ufcFile:"+ufcFileInfo.filePath();
+        auto lines = FileHelper::LoadText(ufcFileInfo.filePath());
+        if(!lines.isEmpty()){
+            for(auto&line:lines){
+                if(line.isEmpty()) continue;
+                if(line.startsWith(' ')) continue;
+                int flag = -1;
+                QString line2 = line;
+                if(line2.endsWith('+')){
+                    line2= line2.left(line2.length()-1);
+                    flag = 1;
+                } else if(line2.endsWith('-')){
+                    line2= line2.left(line2.length()-1);
+                    flag = -1;
+                } else{
+                    flag = -1;
+                }
+                bool ok;
+                auto fc = FriendlyRGB::FromCSV(line, FriendlyRGB::CsvType::hex, &ok);
+                ufcs.append({fc,0,flag});
+            }
+        }
+    }
+
+    int markerId = FcFileNameToMarkerId(fcfilename);
+    qDebug() << "markerId:"+QString::number(markerId);
+    if(!fcs.isEmpty()){
+        for(auto&f:fcs){
+            f.colorint = f.rgb.toDecString();
+        }
+        DeleteMarkerColors(markerId);
+        InsertMarkerColor(markerId, fcs);
+    }
+
+    if(!ufcs.isEmpty()){
+        int markerCorrId = GetMarkerCorrectionId(markerId);
+        if(markerCorrId==-1){
+            InsertMarkerCorrection(markerId, ufcfilename, "corrections for "+ufcfilename);
+            markerCorrId = GetMarkerCorrectionId(markerId);
+        }
+        qDebug() << "markerCorrId:"+QString::number(markerCorrId);
+        if(markerCorrId!=-1){
+            for(auto&f:ufcs){
+                f.colorint = f.rgb.toDecString();
+            }
+            DeleteMarkerCorrectionItems(markerCorrId);
+            InsertMarkerCorrectionItems(markerCorrId, ufcs);
+        }
+    }
+}
+
+/*
+    int ix = fn.lastIndexOf(QChar('.'));
+    if(ix>-1) fn = fn.left(ix);
+*/
+//ufc_3_RYB_YELLOW.txt
+//WC_Marker.Yellow
+auto MainPresenter::FcFileNameToMarkerName(const QString& fc) -> QString
+{
+    QString fn=fc;
+    int ix = fn.lastIndexOf(QChar('.'));
+    if(ix>-1) fn = fn.left(ix);
+    ix = fn.lastIndexOf(QChar('/'));
+    if(ix>-1) fn = fn.mid(ix+1);
+
+    qDebug() << "fn: "+fn;
+    if(!fn.startsWith("fc")) return QString();
+
+    if(fn.toLower().endsWith("ryb_red")) return "WC_Marker.Red";
+    if(fn.toLower().endsWith("ryb_green")) return "WC_Marker.Green";
+    if(fn.toLower().endsWith("ryb_blue")) return "WC_Marker.Blue";
+    if(fn.toLower().endsWith("ryb_yellow")) return "WC_Marker.Yellow";
+    if(fn.toLower().endsWith("ryb_orange")) return "WC_Marker.Orange";
+    if(fn.toLower().endsWith("ryb_purple")) return "WC_Marker.Purple";
+    return QString();
+}
+
+auto MainPresenter::FcFileNameToMarkerId(const QString& fc) -> int{
+    QString markerName = FcFileNameToMarkerName(fc);
+    qDebug() << "markerName: "+markerName;
+    int id = GetMarkerIdByName(markerName);
+    return id;
+}
+
+auto MainPresenter::GetMarkerIdByName(const QString& mn)->int
+{
+    if(mn.isEmpty()) return -1;
+    int id=-1;
+    SQLHelper sqlh;
+    static const QString CONN = QStringLiteral("conn1");
+    {
+        auto db = sqlh.Connect(settings._sql_settings, CONN);
+        if(db.isValid()){
+            //qDebug() << "db.isValid";
+            bool db_ok = db.open();
+            QString dberr(QLatin1String(""));
+
+            int rows=0;
+            if(db_ok)
+            {
+                QSqlQuery query(db);
+                auto cmd = QStringLiteral("SELECT id FROM exm.Markers WHERE Name = '%1'").arg(mn);
+                qDebug() << "cmd: "+cmd;
+                db_ok = query.exec(cmd);
+                if(db_ok)
+                {
+                    //int fieldNo = query.record().indexOf("country");
+                    rows = 0;
+                    while(query.next()){
+                        rows++;
+                        id = query.value(0).toInt();
+                        break;
+                    }
+                }
+            }
+
+            if(!db_ok)
+            {
+                QSqlError a = db.lastError();
+                dberr = a.text().trimmed();
+            }
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(CONN);
+    return id;
+}
+
+auto MainPresenter::GetMarkerCorrectionId(int markerId)->int
+{
+    int id=-1;
+    SQLHelper sqlh;
+    static const QString CONN = QStringLiteral("conn1");
+    {
+        auto db = sqlh.Connect(settings._sql_settings, CONN);
+        if(db.isValid()){
+            //qDebug() << "db.isValid";
+            bool db_ok = db.open();
+            QString dberr(QLatin1String(""));
+
+            int rows=0;
+            if(db_ok)
+            {
+                QSqlQuery query(db);
+                auto cmd = QStringLiteral("SELECT id FROM exm.MarkerCorrections WHERE MarkerId = '%1'").arg(markerId);
+                qDebug() << "cmd: "+cmd;
+                db_ok = query.exec(cmd);
+                if(db_ok)
+                {
+                    //int fieldNo = query.record().indexOf("country");
+                    rows = 0;
+                    while(query.next()){
+                        rows++;
+                        id = query.value(0).toInt();
+                        break;
+                    }
+                }
+            }
+
+            if(!db_ok)
+            {
+                QSqlError a = db.lastError();
+                dberr = a.text().trimmed();
+            }
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(CONN);
+    return id;
+}
+
+bool MainPresenter::InsertMarkerColor(int markerId,const QList<SQLFc>& fcs){
+    if(fcs.isEmpty()) return -1;
+    int id=-1;
+    SQLHelper sqlh;
+    static const QString CONN = QStringLiteral("conn1");
+    {
+        auto db = sqlh.Connect(settings._sql_settings, CONN);
+        if(db.isValid()){
+            //qDebug() << "db.isValid";
+            bool db_ok = db.open();
+            QString dberr(QLatin1String(""));
+
+            int rows=0;
+            if(db_ok)
+            {
+                int j = 0;
+                QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+                for(auto&f:fcs){
+                    QSqlQuery query(db);
+                    QString cmd = QStringLiteral("INSERT INTO exm.MarkerColors (MarkerId, Color, MarkerColorType, LastModified) VALUES  (%1, '%2', %3, '%4')")
+                                      .arg(markerId).arg(f.colorint).arg(f.flag).arg(most);
+                    qDebug() << "cmd: "+cmd;
+                    db_ok = query.exec(cmd);
+//                    if(db_ok)
+//                    {
+//                        rows = 0;
+//                        while(query.next()){
+//                            rows++;
+//                            id = query.value(0).toInt();
+//                            break;
+//                        }
+//                    }
+                    j++;
+                    //if(j>5) break;
+                }
+            }
+
+            if(!db_ok)
+            {
+                QSqlError a = db.lastError();
+                dberr = a.text().trimmed();
+            }
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(CONN);
+    return id;
+}
+
+bool MainPresenter::DeleteMarkerColors(int markerId){
+    int id=-1;
+    SQLHelper sqlh;
+    static const QString CONN = QStringLiteral("conn1");
+    {
+        auto db = sqlh.Connect(settings._sql_settings, CONN);
+        if(db.isValid()){
+            //qDebug() << "db.isValid";
+            bool db_ok = db.open();
+            QString dberr(QLatin1String(""));
+
+            int rows=0;
+            if(db_ok)
+            {
+                int j = 0;
+                QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+
+                QSqlQuery query(db);
+                QString cmd = QStringLiteral("DELETE FROM exm.MarkerColors WHERE MarkerId=%1")
+                                  .arg(markerId);
+                qDebug() << "cmd: "+cmd;
+                db_ok = query.exec(cmd);
+//                if(db_ok)
+//                {
+//                    rows = 0;
+//                    while(query.next()){
+//                        rows++;
+//                        id = query.value(0).toInt();
+//                        break;
+//                    }
+//                }
+
+            }
+
+            if(!db_ok)
+            {
+                QSqlError a = db.lastError();
+                dberr = a.text().trimmed();
+            }
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(CONN);
+    return id;
+}
+
+bool MainPresenter::InsertMarkerCorrection(int markerId,
+                                           const QString& name,
+                                           const QString& comments){
+    int id=-1;
+    SQLHelper sqlh;
+    static const QString CONN = QStringLiteral("conn1");
+    {
+        auto db = sqlh.Connect(settings._sql_settings, CONN);
+        if(db.isValid()){
+            //qDebug() << "db.isValid";
+            bool db_ok = db.open();
+            QString dberr(QLatin1String(""));
+
+            int rows=0;
+            if(db_ok)
+            {
+                int j = 0;
+                QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+
+                    QSqlQuery query(db);
+                    QString cmd = QStringLiteral("INSERT INTO exm.MarkerCorrections (MarkerId, Name, Comments, LastModified) VALUES  (%1, '%2', '%3', '%4')")
+                                      .arg(markerId).arg(name).arg(comments).arg(most);
+                    qDebug() << "cmd: "+cmd;
+                    db_ok = query.exec(cmd);
+//                    if(db_ok)
+//                    {
+//                        rows = 0;
+//                        while(query.next()){
+//                            rows++;
+//                            id = query.value(0).toInt();
+//                            break;
+//                        }
+//                    }
+
+            }
+
+            if(!db_ok)
+            {
+                QSqlError a = db.lastError();
+                dberr = a.text().trimmed();
+            }
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(CONN);
+    return id;
+}
+
+
+bool MainPresenter::DeleteMarkerCorrectionItems(int markerCorrectionId){
+    int id=-1;
+    SQLHelper sqlh;
+    static const QString CONN = QStringLiteral("conn1");
+    {
+        auto db = sqlh.Connect(settings._sql_settings, CONN);
+        if(db.isValid()){
+            //qDebug() << "db.isValid";
+            bool db_ok = db.open();
+            QString dberr(QLatin1String(""));
+
+            int rows=0;
+            if(db_ok)
+            {
+                int j = 0;
+                QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+
+                QSqlQuery query(db);
+                QString cmd = QStringLiteral("DELETE FROM exm.MarkerCorrectionItems WHERE MarkerCorrectionId=%1")
+                                  .arg(markerCorrectionId);
+                qDebug() << "cmd: "+cmd;
+                db_ok = query.exec(cmd);
+//                if(db_ok)
+//                {
+//                    rows = 0;
+//                    while(query.next()){
+//                        rows++;
+//                        id = query.value(0).toInt();
+//                        break;
+//                    }
+//                }
+
+            }
+
+            if(!db_ok)
+            {
+                QSqlError a = db.lastError();
+                dberr = a.text().trimmed();
+            }
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(CONN);
+    return id;
+}
+
+bool MainPresenter::InsertMarkerCorrectionItems(int markerCorrectionId, const QList<SQLFc>& fcs){
+    if(fcs.isEmpty()) return -1;
+    int id=-1;
+    SQLHelper sqlh;
+    static const QString CONN = QStringLiteral("conn1");
+    {
+        auto db = sqlh.Connect(settings._sql_settings, CONN);
+        if(db.isValid()){
+            //qDebug() << "db.isValid";
+            bool db_ok = db.open();
+            QString dberr(QLatin1String(""));
+
+            int rows=0;
+            if(db_ok)
+            {
+                int j = 0;
+                QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+                for(auto&f:fcs){
+                    QSqlQuery query(db);
+                    QString cmd = QStringLiteral("INSERT INTO exm.MarkerCorrectionItems (MarkerCorrectionId, Color, MarkerColorType, LastModified) VALUES  (%1, '%2', %3, '%4')")
+                                      .arg(markerCorrectionId).arg(f.colorint).arg(f.flag).arg(most);
+                    qDebug() << "cmd: "+cmd;
+                    db_ok = query.exec(cmd);
+                    //                    if(db_ok)
+                    //                    {
+                    //                        rows = 0;
+                    //                        while(query.next()){
+                    //                            rows++;
+                    //                            id = query.value(0).toInt();
+                    //                            break;
+                    //                        }
+                    //                    }
+                    j++;
+                    //if(j>5) break;
+                }
+            }
+
+            if(!db_ok)
+            {
+                QSqlError a = db.lastError();
+                dberr = a.text().trimmed();
+            }
+            db.close();
+        }
+    }
+    QSqlDatabase::removeDatabase(CONN);
+    return id;
 }

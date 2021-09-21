@@ -1,4 +1,4 @@
-QT       += core gui charts
+QT       += core gui charts network sql
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -19,7 +19,10 @@ SOURCES += \
     mainwindow.cpp \
     #model.cpp \
  \    #updates.cpp
-    settings.cpp
+    networkhelper.cpp \
+    processhelper.cpp \
+    settings.cpp \
+    sqlhelper.cpp
 
 HEADERS += \
     #actions.h \
@@ -34,7 +37,10 @@ HEADERS += \
     mainwindow.h \
     #model.h \
  \    #updates.h
-    settings.h
+    networkhelper.h \
+    processhelper.h \
+    settings.h \
+    sqlhelper.h
 
 FORMS += \
     mainwindow.ui

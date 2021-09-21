@@ -123,8 +123,9 @@ auto MainWindow::get_selected_color_serie()->QList<MainViewModel::Rgb>
 }
 
 //https://stackoverflow.com/questions/65537064/is-it-possible-to-have-an-individual-marker-color-for-each-point-in-a-qscatterse
+// m-ben van az items, az itemben van az rgb
 void MainWindow::set_serie(QScatterSeries* s, const MainViewModel::ColorSerie& m,  QMap<int, QBrush>* map, const SelectedItems& si){
-    for(auto&j:m.items){
+    for(const MainViewModel::ColorSerieItem&j:m.items){
         int key = toKey(j.lab.a, j.lab.b);
         _color_serie_all.append(j);
         s->append({j.lab.a, j.lab.b});
@@ -328,5 +329,12 @@ void MainWindow::on_radioButton_4_clicked(bool checked)
 {
     static const QRect r(QPoint(-90,10),QPoint(10,-90));
     if(checked) setRange(r);
+}
+
+
+void MainWindow::on_pushButton_sqlupd_clicked()
+{
+    qDebug() << "on_pushButton_sqlupd_clicked";
+    emit SQLUpdActionTriggered(this);
 }
 
