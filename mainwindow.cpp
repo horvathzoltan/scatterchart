@@ -338,3 +338,9 @@ void MainWindow::on_pushButton_sqlupd_clicked()
     emit SQLUpdActionTriggered(this);
 }
 
+
+void MainWindow::on_pushButton_filter1_clicked()
+{
+    qDebug() << "on_pushButton_filter1_clicked";
+    emit Filter1ActionTriggered(this);
+}

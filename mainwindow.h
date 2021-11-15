@@ -56,6 +56,7 @@ signals:
         void LoadActionTriggered(IMainView *sender);
         void SaveSelectedActionTriggered(IMainView *sender);
         void SQLUpdActionTriggered(IMainView *sender);
+        void Filter1ActionTriggered(IMainView *sender);
 private slots:
     void on_pushButton_clear_clicked();
     void on_pushButton_load_clicked();
@@ -77,6 +78,8 @@ private slots:
     void on_radioButton_4_clicked(bool checked);
 
     void on_pushButton_sqlupd_clicked();
+
+    void on_pushButton_filter1_clicked();
 
 private:
     static const int MAX = 120;

@@ -2,7 +2,7 @@
 #include "mainviewmodel.h"
 #include "settings.h"
 
-#include "model.h"
+//#include "model.h"
 #include "friendlyrgb.h"
 #include "filehelper.h"
 
@@ -35,6 +35,9 @@ void MainPresenter::appendView(IMainView *w)
 
     QObject::connect(view_obj, SIGNAL(SQLUpdActionTriggered(IMainView *)),
                      this, SLOT(processSQLUpdAction(IMainView *)));
+
+    QObject::connect(view_obj, SIGNAL(Filter1ActionTriggered(IMainView *)),
+                     this, SLOT(processFilter1Action(IMainView *)));
 
     //SaveSelectedActionTriggeredprocessSaveSelectedActionTriggered
 //    QObject::connect(&(*view_obj), &IMainView::LoadActionTriggered,
@@ -153,6 +156,7 @@ auto MainPresenter::LoadFcs2(const QString& filename, const MainViewModel::Load&
         }
     }
     //_fileName = filename;
+    qDebug() << "data contains: "+QString::number(data.count())+ " element";
     return data;
 }
 
@@ -624,4 +628,8 @@ bool MainPresenter::InsertMarkerCorrectionItems(int markerCorrectionId, const QL
     }
     QSqlDatabase::removeDatabase(CONN);
     return id;
+}
+
+void MainPresenter::processFilter1Action(IMainView *sender){
+    qDebug() << "processFilter1Action";
 }

@@ -22,6 +22,7 @@ public: // signals
     virtual void LoadActionTriggered(IMainView *sender) = 0;
     virtual void SaveSelectedActionTriggered(IMainView *sender) = 0;
     virtual void SQLUpdActionTriggered(IMainView *sender) =0;
+    virtual void Filter1ActionTriggered(IMainView *sender) =0;
 };
 
 #endif // IMAINVIEW_H

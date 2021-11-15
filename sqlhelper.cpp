@@ -7,6 +7,7 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QRegularExpression>
+#include <QTcpSocket>
 
 SQLHelper::SQLHelper()
 {
@@ -21,38 +22,80 @@ QString SQLHelper::GetDriverName(){
     return driverfi.absoluteFilePath();
 }
 
-//https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-setup-tools?view=sql-server-ver15#ubuntu
 QSqlDatabase SQLHelper::Connect(const SQLSettings& s, const QString& name)
 {
     QSqlDatabase db;
     const HostPort* h=nullptr;
     for(auto&i:s.hosts)
     {
-        if(NetworkHelper::Ping(i.host)) {h=&(i);break;}
+        qDebug() << QStringLiteral("host: ")+i.host+":"+QString::number(i.port);
+        if(NetworkHelper::Ping(i.host)) {
+            qDebug() << QStringLiteral("ping ok");
+            QTcpSocket s;
+            s.connectToHost(i.host, i.port);
+            auto isok = s.waitForConnected(1000);
+            if(isok){
+                s.disconnectFromHost();
+                if (s.state() != QAbstractSocket::UnconnectedState) s.waitForDisconnected();
+                h=&(i);
+                qDebug() << QStringLiteral("socket ok");
+                break;
+            }
+            else{
+                qDebug() << QStringLiteral("socket err");
+            }
+        }
+        else{
+            qDebug() << QStringLiteral("ping err");
+        }
     }
 
     if(h)
     {
+        qDebug() << QStringLiteral("available host found: ")+h->host+":"+QString::number(h->port);
         db = QSqlDatabase::addDatabase(s.driver, name);
         auto driverfn = GetDriverName();
         if(driverfn.isEmpty()) return db;
         auto dbname = QStringLiteral("DRIVER=%1;Server=%2,%3;Database=%4").arg(driverfn).arg(h->host).arg(h->port).arg(s.dbname);
         db.setDatabaseName(dbname);
         db.setUserName(s.user);
-        db.setPassword(s.password);        
-        //volatile bool db_ok = db.open();
-        //        if(db_ok)
-        //        {
-        //            zTrace();
-        //        }
-        //        else
-        //        {
-        //            auto err = db.lastError().text();
-        //            zInfo(err);
-        //        }
+        db.setPassword(s.password);
     }
     return db;
 }
+
+//https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-setup-tools?view=sql-server-ver15#ubuntu
+//QSqlDatabase SQLHelper::Connect(const SQLSettings& s, const QString& name)
+//{
+//    QSqlDatabase db;
+//    const HostPort* h=nullptr;
+//    for(auto&i:s.hosts)
+//    {
+//        if(NetworkHelper::Ping(i.host)) {h=&(i);break;}
+//    }
+
+//    if(h)
+//    {
+//        db = QSqlDatabase::addDatabase(s.driver, name);
+//        auto driverfn = GetDriverName();
+//        if(driverfn.isEmpty()) return db;
+//        auto dbname = QStringLiteral("DRIVER=%1;Server=%2,%3;Database=%4").arg(driverfn).arg(h->host).arg(h->port).arg(s.dbname);
+//        db.setDatabaseName(dbname);
+//        db.setUserName(s.user);
+//        db.setPassword(s.password);
+//        //volatile bool db_ok = db.open();
+//        //        if(db_ok)
+//        //        {
+//        //            zTrace();
+//        //        }
+//        //        else
+//        //        {
+//        //            auto err = db.lastError().text();
+//        //            zInfo(err);
+//        //        }
+//    }
+//    return db;
+//}
 
 void Error(const QSqlError& err)
 {
