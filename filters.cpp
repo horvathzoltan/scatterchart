@@ -10,27 +10,15 @@ QList<int> Filters::Filter1(MainViewModel::Filter1 m){
     QList<int> e;
 
     for(int g=0;g<=255;g+=1){
-        //auto gray = FriendlyRGB::toLab(g,g,0.71*g);
         auto gray = FriendlyRGB::toLab(g,g,g);
-        //auto gray = FriendlyRGB::toLab(128,128,128);
 
         for(int i=0;i<m.m.count();i++){
             auto c=(m.m)[i];
             CIEDE2000::LAB l{c.l, c.a, c.b};
             auto d = CIEDE2000::CIEDE2000(gray,l);
+            if(d >= m.d) continue;
 
-    //        auto t = GeoMath::Dist(a.a, a.b);
-    //        if(t>30){
-    //            e.append(i);
-    //        }
-
-            if(d<m.d){//12.5){//25
-                e.append(i);
-            }
-            //FriendlyRGB fc(i.r, i.g, i.b);
-            //auto hex = fc.toHexString();
-            //e.append(hex);
-
+            e.append(i);
         }
     }
 
@@ -49,6 +37,15 @@ QList<int> Filters::Filter2(MainViewModel::Filter2 m){
     QList<int> e;
     QString color_name;
 
+    double a_cold, a_warm;
+    a_cold = CIEDE2000::deg2Rad(m.aCold);
+    a_warm = CIEDE2000::deg2Rad(-m.aWarm);
+    double cosa_cold = cos(a_cold);
+    double sina_cold = sin(a_cold);
+
+    double cosa_warm = cos(a_warm);
+    double sina_warm = sin(a_warm);
+
     for(int i=0;i<m.m.count();i++){
         auto c=(m.m)[i];
         CIEDE2000::LAB l{c.l, c.a, c.b};
@@ -58,35 +55,49 @@ QList<int> Filters::Filter2(MainViewModel::Filter2 m){
         if(color_name.isEmpty()){
             color_name = FriendlyColors::GetName(ix);
             qDebug() << "color_name: "+color_name;
-        }
+        }       
 
-        double a_cold, a_warm;
-        a_cold = CIEDE2000::deg2Rad(m.aCold);
-        a_warm = CIEDE2000::deg2Rad(-m.aWarm);
-
-        double aa1, bb1; // <- cool + angle
-        GeoMath::Rotate(c.a, c.b, a_cold, &aa1, &bb1);
-        CIEDE2000::LAB l1{c.l, aa1, bb1};
+        double aa, bb;
+        GeoMath::Rotate(c.a, c.b, sina_warm, cosa_warm, &aa, &bb);
+        CIEDE2000::LAB l1{c.l, aa, bb};
         int ix1 = FriendlyColors::GetRYBIxWheelN(l1,&d0,6);
+        if(ix!=ix1) continue;
 
-        double aa2, bb2; // -> warm - angle
-        GeoMath::Rotate(c.a, c.b, a_warm, &aa2, &bb2);
-        CIEDE2000::LAB l2{c.l, aa2, bb2};
-        int ix2 = FriendlyColors::GetRYBIxWheelN(l2,&d0,6);
+        GeoMath::Rotate(c.a, c.b, sina_cold, cosa_cold, &aa, &bb);
+        CIEDE2000::LAB l2{c.l, aa, bb};
+        ix1 = FriendlyColors::GetRYBIxWheelN(l2,&d0,6);
+        if(ix!=ix1) continue;
 
-        QSet<QString> a;
-        if(ix==ix1 && ix==ix2){
-            e.append(i);
-        }
-        else{
-
-            //a.insert();
-        }
+        e.append(i);
     }
 
     QList<int> e2;
     for(int i=0;i<m.m.count();i++){
         if(!e.contains(i)) continue;
+        e2.append(i);
+    }
+    return e2;
+}
+
+QList<int> Filters::Filter3(Filter3Model m){
+    qDebug() << "Filter3";
+    qDebug() << "colors: "+QString::number(m.m.count());
+
+    QList<int> e;
+
+    for(auto&l0:m.unfc){
+        for(int i=0;i<m.m.count();i++){
+            auto c=(m.m)[i];
+            auto d = CIEDE2000::CIEDE2000(l0,{c.l, c.a, c.b});
+            if(d >= m.d) continue;
+
+            e.append(i);
+        }
+    }
+
+    QList<int> e2;
+    for(int i=0;i<m.m.count();i++){
+        if(e.contains(i)) continue;
         e2.append(i);
     }
     return e2;

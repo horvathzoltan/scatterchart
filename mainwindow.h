@@ -72,13 +72,14 @@ public:
     void unselect_all();
     MainViewModel::Filter1 getFilter1Params();
     MainViewModel::Filter2 getFilter2Params();
-
+    MainViewModel::Filter3 getFilter3Params();
 signals:
         void LoadActionTriggered(IMainView *sender);
         void SaveSelectedActionTriggered(IMainView *sender);
         void SQLUpdActionTriggered(IMainView *sender);
         void Filter1ActionTriggered(IMainView *sender);
         void Filter2ActionTriggered(IMainView *sender);
+        void Filter3ActionTriggered(IMainView *sender);
 private slots:
     void on_pushButton_clear_clicked();
     void on_pushButton_load_clicked();
@@ -97,6 +98,8 @@ private slots:
     void on_pushButton_unselect_all_clicked();
     void on_pushButton_filter1_clicked();
     void on_pushButton_filter2_clicked();
+    void on_pushButton_filter3_clicked();
+
 private:
     static const int MAX = 120;
     bool isOwnColor();

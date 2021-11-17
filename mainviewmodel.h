@@ -75,6 +75,11 @@ public:
         QList<MainViewModel::Lab> m;
     };
 
+    struct Filter3{
+        double d;
+        QString filename;
+        QList<MainViewModel::Lab> m;
+    };
 };
 
 

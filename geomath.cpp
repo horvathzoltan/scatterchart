@@ -43,3 +43,10 @@ void GeoMath::Rotate(double x, double y, double a, double *xx, double *yy){
     *xx=x*cosa-y*sina;
     *yy=x*sina+y*cosa;
 }
+
+void GeoMath::Rotate(double x, double y, double sina, double cosa, double *xx, double *yy){
+    if(!(xx&&yy))return;
+
+    *xx=x*cosa-y*sina;
+    *yy=x*sina+y*cosa;
+}

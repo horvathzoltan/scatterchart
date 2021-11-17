@@ -21,6 +21,7 @@ public:
     virtual MainViewModel::Load load() =0;
     virtual MainViewModel::Filter1 getFilter1Params() =0;
     virtual MainViewModel::Filter2 getFilter2Params() =0;
+    virtual MainViewModel::Filter3 getFilter3Params() =0;
 
 public: // signals
     virtual void LoadActionTriggered(IMainView *sender) = 0;
@@ -28,6 +29,7 @@ public: // signals
     virtual void SQLUpdActionTriggered(IMainView *sender) =0;
     virtual void Filter1ActionTriggered(IMainView *sender) =0;
     virtual void Filter2ActionTriggered(IMainView *sender) =0;
+    virtual void Filter3ActionTriggered(IMainView *sender) =0;
 };
 
 #endif // IMAINVIEW_H

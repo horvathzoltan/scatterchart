@@ -390,6 +390,11 @@ void MainWindow::on_radioButton_4_clicked(bool checked)
     if(checked) setRange(r);
 }
 
+void MainWindow::on_pushButton_unselect_all_clicked()
+{
+    qDebug() << "on_pushButton_unselect_all_clicked";
+    unselect_all();
+}
 
 void MainWindow::on_pushButton_sqlupd_clicked()
 {
@@ -410,12 +415,13 @@ void MainWindow::on_pushButton_filter2_clicked()
     emit Filter2ActionTriggered(this);
 }
 
-
-void MainWindow::on_pushButton_unselect_all_clicked()
+void MainWindow::on_pushButton_filter3_clicked()
 {
-    qDebug() << "on_pushButton_unselect_all_clicked";
-    unselect_all();
+    qDebug() << "on_pushButton_filter3_clicked";
+    emit Filter3ActionTriggered(this);
 }
+
+
 
 MainViewModel::Filter1 MainWindow::getFilter1Params(){
     auto d = ui->doubleSpinBox_filter1->value();
@@ -430,7 +436,12 @@ MainViewModel::Filter2 MainWindow::getFilter2Params(){
     return {aCold, aWarm, m};
 }
 
-
+MainViewModel::Filter3 MainWindow::getFilter3Params(){
+    auto d = ui->doubleSpinBox_filter3_d->value();
+    auto fn = ui->lineEdit_filter3_fn->text();
+    auto m = get_color_serie_lab();
+    return {d, fn, m};
+}
 
 
 

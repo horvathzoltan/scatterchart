@@ -43,6 +43,8 @@ void MainPresenter::appendView(IMainView *w)
     QObject::connect(view_obj, SIGNAL(Filter2ActionTriggered(IMainView *)),
                      this, SLOT(processFilter2Action(IMainView *)));
 
+    QObject::connect(view_obj, SIGNAL(Filter3ActionTriggered(IMainView *)),
+                     this, SLOT(processFilter3Action(IMainView *)));
     //SaveSelectedActionTriggeredprocessSaveSelectedActionTriggered
 //    QObject::connect(&(*view_obj), &IMainView::LoadActionTriggered,
 //                     this, &MainPresenter::processLoadAction);
@@ -133,10 +135,12 @@ auto MainPresenter::LoadFcs(const MainViewModel::Load& m) -> QList<MainViewModel
         );
     settings.fcspath = filename;
 
-    return LoadFcs2(filename, m);
+    return LoadFcs2(filename, m.plus, m.minus);
 }
 
-auto MainPresenter::LoadFcs2(const QString& filename, const MainViewModel::Load& m)->QList<MainViewModel::Rgb>{
+auto MainPresenter::LoadFcs2(const QString& filename, bool mplus, bool mminus)
+    -> QList<MainViewModel::Rgb>
+{
     QList<MainViewModel::Rgb> data;
 
     if(!QFileInfo(filename).exists()) return {};
@@ -151,7 +155,7 @@ auto MainPresenter::LoadFcs2(const QString& filename, const MainViewModel::Load&
             line2= line2.left(line2.length()-1);
             isPlus = true;
         }
-        if((isPlus&&m.plus) || (!isPlus&&m.minus)){
+        if((isPlus&&mplus) || (!isPlus&&mminus)){
             bool ok;
             auto fc = FriendlyRGB::FromCSV(line2, FriendlyRGB::CsvType::hex, &ok);
             auto rgb = MainViewModel::Rgb::fromFriendlyRGB(fc);
@@ -248,20 +252,43 @@ void MainPresenter::processSQLUpdAction(IMainView *sender){
         }
     }
 
+    //yellow=2 zöld=5, red=4
     int markerId = FcFileNameToMarkerId(fcfilename);
+    if(markerId==-1){
+        auto u = fcfilename.toLower();
+        if(u.contains("ryb_red")){
+            markerId=4;
+        } else if (u.contains("ryb_green")) {
+            markerId=5;
+        } else if (u.contains("ryb_yellow")) {
+            markerId=2;
+        }
+    }
     qDebug() << "markerId:"+QString::number(markerId);
     if(!fcs.isEmpty()){
         for(auto&f:fcs){
             f.colorint = f.rgb.toDecString();
         }
-        QString r = "insert "+fcfilename+":\n--begin";
+        auto cmd_del = DeleteMarkerColors(markerId);
+        auto cmd_ins = InsertMarkerColor(markerId, fcs);
+        QString r = "--insert "+fcfilename+":\n--begin";
         if(!r.isEmpty()) r+='\n';
-        r += DeleteMarkerColors(markerId);
+        r += cmd_del;
         if(!r.isEmpty()) r+='\n';
-        r += InsertMarkerColor(markerId, fcs);
+        r += cmd_ins;
         if(!r.isEmpty()) r+='\n';
         r += "--end\n";
-        qDebug() << r;
+
+
+        QString fullPath = settings.fcspath;
+        QFileInfo f(fullPath);
+        auto path = f.path();
+        QString sql_filename = QDir(path).filePath(fcfilename+".sql");
+        qDebug() << "sql_file: "+sql_filename;
+
+        FileHelper::SaveText(sql_filename, {r});
+        ExecuteSQL(cmd_del);
+        ExecuteSQL(cmd_ins);
     }    
 
     if(!ufcs.isEmpty()){
@@ -297,13 +324,14 @@ auto MainPresenter::FcFileNameToMarkerName(const QString& fc) -> QString
 
     qDebug() << "fn: "+fn;
     if(!fn.startsWith("fc")) return QString();
+    auto u = fn.toLower();
 
-    if(fn.toLower().endsWith("ryb_red")) return "WC_Marker.Red";
-    if(fn.toLower().endsWith("ryb_green")) return "WC_Marker.Green";
-    if(fn.toLower().endsWith("ryb_blue")) return "WC_Marker.Blue";
-    if(fn.toLower().endsWith("ryb_yellow")) return "WC_Marker.Yellow";
-    if(fn.toLower().endsWith("ryb_orange")) return "WC_Marker.Orange";
-    if(fn.toLower().endsWith("ryb_purple")) return "WC_Marker.Purple";
+    if(u.endsWith("ryb_red")) return "WC_Marker.Red";
+    if(u.endsWith("ryb_green")) return "WC_Marker.Green";
+    if(u.endsWith("ryb_blue")) return "WC_Marker.Blue";
+    if(u.endsWith("ryb_yellow")) return "WC_Marker.Yellow";
+    if(u.endsWith("ryb_orange")) return "WC_Marker.Orange";
+    if(u.endsWith("ryb_purple")) return "WC_Marker.Purple";
     return QString();
 }
 
@@ -404,95 +432,48 @@ auto MainPresenter::GetMarkerCorrectionId(int markerId)->int
 QString MainPresenter::InsertMarkerColor(int markerId,const QList<SQLFc>& fcs){
     QString r;
     if(fcs.isEmpty()) return r;
-    int id=-1;
-    SQLHelper sqlh;
 
-    static const QString CONN = QStringLiteral("conn1");
-    {
-        auto db = sqlh.Connect(settings._sql_settings, CONN);
-        if(db.isValid()){
-            //qDebug() << "db.isValid";
-            bool db_ok = db.open();
-            QString dberr(QLatin1String(""));
-
-            int rows=0;
-            if(db_ok)
-            {
-                int j = 0;
-                QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
-                for(auto&f:fcs){
-                    QSqlQuery query(db);
-                    QString cmd = QStringLiteral("INSERT INTO exm.MarkerColors (MarkerId, Color, MarkerColorType) VALUES  (%1, '%2', %3)")
-                                      .arg(markerId).arg(f.colorint).arg(f.flag);
-                    //qDebug() << "cmd: "+cmd;
-                    db_ok = query.exec(cmd);
-                    if(!r.isEmpty()) r+='\n';
-                    r+=cmd;
-//                    if(db_ok)
-//                    {
-//                        rows = 0;
-//                        while(query.next()){
-//                            rows++;
-//                            id = query.value(0).toInt();
-//                            break;
-//                        }
-//                    }
-                    j++;
-                    //if(j>5) break;
-                }
-            }
-
-            if(!db_ok)
-            {
-                QSqlError a = db.lastError();
-                dberr = a.text().trimmed();
-            }
-            db.close();
-        }
+    //int j = 0;
+    QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+    for(auto&f:fcs){
+        QString cmd =
+            QStringLiteral("INSERT INTO exm.MarkerColors (MarkerId, Color, MarkerColorType) VALUES  (%1, '%2', %3)")
+                .arg(markerId).arg(f.colorint).arg(f.flag);
+        if(!r.isEmpty()) r+='\n';
+        r+=cmd;
+       // j++;
     }
-    QSqlDatabase::removeDatabase(CONN);
     return r;
 }
 
 QString MainPresenter::DeleteMarkerColors(int markerId){
-    int id=-1;
-    SQLHelper sqlh;
     QString r;
+    QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+
+    QString cmd =
+        QStringLiteral("DELETE FROM exm.MarkerColors WHERE MarkerId=%1")
+            .arg(markerId);
+    if(!r.isEmpty()) r+='\n';
+    r+=cmd;
+    return r;
+}
+
+int MainPresenter::ExecuteSQL(const QString& cmd){
+    SQLHelper sqlh;
     static const QString CONN = QStringLiteral("conn1");
     {
         auto db = sqlh.Connect(settings._sql_settings, CONN);
         if(db.isValid()){
-            //qDebug() << "db.isValid";
             bool db_ok = db.open();
             QString dberr(QLatin1String(""));
 
-            int rows=0;
-            if(db_ok)
-            {
-                int j = 0;
+            if(db_ok){
                 QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
-
                 QSqlQuery query(db);
-                QString cmd = QStringLiteral("DELETE FROM exm.MarkerColors WHERE MarkerId=%1")
-                                  .arg(markerId);
-                //qDebug() << "cmd: "+cmd;
                 db_ok = query.exec(cmd);
-                if(!r.isEmpty()) r+='\n';
-                r+=cmd;
-//                if(db_ok)
-//                {
-//                    rows = 0;
-//                    while(query.next()){
-//                        rows++;
-//                        id = query.value(0).toInt();
-//                        break;
-//                    }
-//                }
-
             }
 
-            if(!db_ok)
-            {
+            if(!db_ok){
                 QSqlError a = db.lastError();
                 dberr = a.text().trimmed();
             }
@@ -500,7 +481,7 @@ QString MainPresenter::DeleteMarkerColors(int markerId){
         }
     }
     QSqlDatabase::removeDatabase(CONN);
-    return r;
+    return 1;
 }
 
 bool MainPresenter::InsertMarkerCorrection(int markerId,
@@ -661,6 +642,27 @@ void MainPresenter::processFilter2Action(IMainView *sender){
     //auto m = sender->get_color_serie_lab();
     auto m = sender->getFilter2Params();
     auto e = Filters::Filter2(m);
+    qDebug() << "filtered: "+QString::number(e.count());
+    sender->set_selected(e);
+}
+
+void MainPresenter::processFilter3Action(IMainView *sender){
+    qDebug() << "processFilter3Action";
+    //auto m = sender->get_color_serie_lab();
+    auto vm = sender->getFilter3Params();
+
+    Filters::Filter3Model m;
+    auto unfc_rgb = LoadFcs2(vm.filename, false, true);
+
+    qDebug() << "unfc_rgb: "+QString::number(unfc_rgb.count());
+    for(auto&i:unfc_rgb){
+        auto l = FriendlyRGB::toLab(i.r, i.g, i.b);
+        m.unfc.append(l);
+    }
+    m.m = vm.m;
+    m.d = vm.d;
+
+    auto e = Filters::Filter3(m);
     qDebug() << "filtered: "+QString::number(e.count());
     sender->set_selected(e);
 }

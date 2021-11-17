@@ -24,6 +24,7 @@ public:
     QString FcFileNameToMarkerName(const QString &fc);
     int FcFileNameToMarkerId(const QString &fc);
 
+    int ExecuteSQL(const QString &cmd);
 private:
     void refreshView(IMainView *w) const;
 
@@ -43,7 +44,8 @@ private:
     bool InsertMarkerCorrectionItems(int markerCorrectionId,const QList<SQLFc>& fcs);
 private:
     QList<IMainView*> _views;
-    QList<MainViewModel::Rgb> LoadFcs2(const QString &folder,const MainViewModel::Load& m);
+    QList<MainViewModel::Rgb> LoadFcs2(const QString &folder,
+                                       bool, bool);
     QList<MainViewModel::Rgb> LoadFcs(const MainViewModel::Load& m);
 private slots:
     void processLoadAction(IMainView *sender);
@@ -51,6 +53,7 @@ private slots:
     void processSQLUpdAction(IMainView *sender);
     void processFilter1Action(IMainView *sender);
     void processFilter2Action(IMainView *sender);
+    void processFilter3Action(IMainView *sender);
 };
 
 #endif // MAINPRESENTER_H
