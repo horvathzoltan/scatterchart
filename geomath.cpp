@@ -30,3 +30,16 @@ double GeoMath::uSzogNormalize(double d)
     if(a>M_PI) return a-M_2PI;
     return a;
 }
+
+double GeoMath::Dist(double a, double b){
+    return std::hypot(a, b);
+}
+
+void GeoMath::Rotate(double x, double y, double a, double *xx, double *yy){
+    if(!(xx&&yy))return;
+    double cosa = cos(a);
+    double sina = sin(a);
+
+    *xx=x*cosa-y*sina;
+    *yy=x*sina+y*cosa;
+}

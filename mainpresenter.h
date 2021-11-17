@@ -50,6 +50,7 @@ private slots:
     void processSaveSelectedAction(IMainView *sender);
     void processSQLUpdAction(IMainView *sender);
     void processFilter1Action(IMainView *sender);
+    void processFilter2Action(IMainView *sender);
 };
 
 #endif // MAINPRESENTER_H

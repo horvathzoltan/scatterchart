@@ -62,7 +62,18 @@ public:
             for(auto&i:m) r.items.append(ColorSerieItem::fromRgb(i));
             return r;
         }
-    };        
+    };
+
+    struct Filter1{
+        double d;
+        QList<MainViewModel::Lab> m;
+    };
+
+    struct Filter2{
+        double aCold;
+        double aWarm;
+        QList<MainViewModel::Lab> m;
+    };
 
 };
 

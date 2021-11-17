@@ -91,20 +91,67 @@ void MainWindow::set_ryb_serie(const MainViewModel::ColorSerie &m)
 {
     _ryb_map.clear();
     _ryb_serie.clear();
-    set_serie(&_ryb_serie, m, &_ryb_map, _selected_ryb);
+    set_map(&_ryb_serie, m, &_ryb_map, _selected_ryb);
 }
 
 void MainWindow::set_rgb_serie(const MainViewModel::ColorSerie &m)
 {
     _rgb_map.clear();
     _rgb_serie.clear();
-    set_serie(&_rgb_serie, m, &_rgb_map, _selected_rgb);
+    set_map(&_rgb_serie, m, &_rgb_map, _selected_rgb);
 }
 
 
 void MainWindow::set_color_serie(const MainViewModel::ColorSerie &m)
 {
     set_serie(&_color_serie, m, &_color_map, _selected_color);
+}
+
+void MainWindow::set_map(QScatterSeries* s, const MainViewModel::ColorSerie& m,  QMap<int, QBrush>* map, const SelectedItems& si){
+    qDebug() << "set_map: "+QString::number(m.items.count())+" colors";
+    for(const MainViewModel::ColorSerieItem&j:m.items){
+        int key = toKey(_color_serie_all, j.lab.a, j.lab.b);
+//        _color_serie_all.append(j);
+        s->append({j.lab.a, j.lab.b});
+        if(isOwnColor()){
+            map->insert(key, {{j.rgb.r, j.rgb.g, j.rgb.b}, Qt::SolidPattern});
+        } else {
+            map->insert(key, {{128,128,128}, Qt::SolidPattern});
+        }
+    }
+    for(int i= 0; i < s->count(); i++){
+        QPointF p = s->at(i);
+        setSerieItemColor(s, p, map, si.isSelected(_color_serie_all,p));
+    }
+}
+
+//https://stackoverflow.com/questions/65537064/is-it-possible-to-have-an-individual-marker-color-for-each-point-in-a-qscatterse
+// m-ben van az items, az itemben van az rgb
+void MainWindow::set_serie(QScatterSeries* s, const MainViewModel::ColorSerie& m,  QMap<int, QBrush>* map, const SelectedItems& si){
+    qDebug() << "insert: "+QString::number(m.items.count())+" colors";
+    for(const MainViewModel::ColorSerieItem&j:m.items){
+        int key = toKey(_color_serie_all, j.lab.a, j.lab.b);
+        _color_serie_all.append(j);
+        s->append({j.lab.a, j.lab.b});
+        if(isOwnColor()){
+            map->insert(key, {{j.rgb.r, j.rgb.g, j.rgb.b}, Qt::SolidPattern});
+        } else {
+            map->insert(key, {{128,128,128}, Qt::SolidPattern});
+        }
+    }
+    for(int i= 0; i < s->count(); i++){
+        QPointF p = s->at(i);
+        setSerieItemColor(s, p, map, si.isSelected(_color_serie_all,p));
+    }
+}
+
+auto MainWindow::get_color_serie_lab()->QList<MainViewModel::Lab>
+{
+    QList<MainViewModel::Lab> e;
+    for(auto i:_color_serie_all){
+        e.append(i.lab);
+    }
+    return e;
 }
 
 auto MainWindow::get_selected_color_serie()->QList<MainViewModel::Rgb>
@@ -122,24 +169,8 @@ auto MainWindow::get_selected_color_serie()->QList<MainViewModel::Rgb>
     return e;
 }
 
-//https://stackoverflow.com/questions/65537064/is-it-possible-to-have-an-individual-marker-color-for-each-point-in-a-qscatterse
-// m-ben van az items, az itemben van az rgb
-void MainWindow::set_serie(QScatterSeries* s, const MainViewModel::ColorSerie& m,  QMap<int, QBrush>* map, const SelectedItems& si){
-    for(const MainViewModel::ColorSerieItem&j:m.items){
-        int key = toKey(j.lab.a, j.lab.b);
-        _color_serie_all.append(j);
-        s->append({j.lab.a, j.lab.b});
-        if(isOwnColor()){
-            map->insert(key, {{j.rgb.r, j.rgb.g, j.rgb.b}, Qt::SolidPattern});
-        } else {
-            map->insert(key, {{128,128,128}, Qt::SolidPattern});
-        }
-    }
-    for(int i= 0; i < s->count(); i++){
-        QPointF p = s->at(i);
-        setSerieItemColor(s, p, map, si.isSelected(p));
-    }
-}
+
+
 
 void MainWindow::on_pushButton_clear_clicked()
 {
@@ -184,10 +215,9 @@ void MainWindow::on_color_clicked(const QPointF &point)
     }
 }
 
-
 void MainWindow::select_serie_item(QScatterSeries* s, QMap<int, QBrush>* map, const QPointF &point, SelectedItems* selected)
 {
-    int key = toKey(point);
+    int key = toKey(_color_serie_all,point);
     bool is_selected = false;
     if(selected->points.contains(key)) { // ha egyenlő akkor togglézünk
         selected->points.remove(key);
@@ -200,9 +230,38 @@ void MainWindow::select_serie_item(QScatterSeries* s, QMap<int, QBrush>* map, co
     setSerieItemColor(s, point, map, is_selected);
 }
 
+void MainWindow::set_selected(QList<int> items){
+
+    for(auto i: items){
+        auto j = _color_serie_all[i];
+        int key = toKey(_color_serie_all,j.lab.a, j.lab.b);
+        _selected_color.points.insert(key);
+        setSerieItemColor(&_color_serie, {j.lab.a, j.lab.b}, &_color_map, true);
+    }
+}
+
+void MainWindow::unselect_all(){
+
+    for(auto j: _color_serie_all){
+        //auto j = _color_serie_all[i];
+        int key = toKey(_color_serie_all,j.lab.a, j.lab.b);
+        if(_selected_color.points.contains(key)){
+            _selected_color.points.remove(key);
+            setSerieItemColor(&_color_serie, {j.lab.a, j.lab.b}, &_color_map, false);
+        }
+    }
+//    for(auto j: _selected_color.points){
+//        double x, y;
+//        fromKey(j, &x, &y);
+//        QPointF p{x, y};
+//        setSerieItemColor(&_color_serie, p, &_color_map, false);
+//    }
+//    _selected_color.points.clear();
+}
+
 bool MainWindow::get_serie_color(QScatterSeries* s, const QPointF& point,  QMap<int, QBrush>* map, SelectedItems* selected)
 {
-    int key = toKey(point);
+    int key = toKey(_color_serie_all,point);
 
     if(!map->contains(key)) return false;
 
@@ -215,7 +274,7 @@ void MainWindow::setSerieItemColor(QScatterSeries* s, const QPointF &p, QMap<int
     QBrush b{{64,64,64}, Qt::SolidPattern};
     QBrush selected_b{{255,64,64}, Qt::Dense4Pattern};
     int ix=0, ix2=0;
-    int key = toKey(p);
+    int key = toKey(_color_serie_all,p);
     QPointF p0 = chart->mapToPosition(p , s);
     QPoint p1 = chartView->mapFromScene(p0);
     auto its = chartView->items(p1);
@@ -344,3 +403,34 @@ void MainWindow::on_pushButton_filter1_clicked()
     qDebug() << "on_pushButton_filter1_clicked";
     emit Filter1ActionTriggered(this);
 }
+
+void MainWindow::on_pushButton_filter2_clicked()
+{
+    qDebug() << "on_pushButton_filter2_clicked";
+    emit Filter2ActionTriggered(this);
+}
+
+
+void MainWindow::on_pushButton_unselect_all_clicked()
+{
+    qDebug() << "on_pushButton_unselect_all_clicked";
+    unselect_all();
+}
+
+MainViewModel::Filter1 MainWindow::getFilter1Params(){
+    auto d = ui->doubleSpinBox_filter1->value();
+    auto m = get_color_serie_lab();
+    return {d, m};
+}
+
+MainViewModel::Filter2 MainWindow::getFilter2Params(){
+    auto aCold = ui->doubleSpinBox_rcold->value();
+    auto aWarm = ui->doubleSpinBox_rwarm->value();
+    auto m = get_color_serie_lab();
+    return {aCold, aWarm, m};
+}
+
+
+
+
+

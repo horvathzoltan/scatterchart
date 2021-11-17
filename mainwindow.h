@@ -20,20 +20,34 @@ private:
         QSet<int> points;
         QColor color;
 
-        bool isSelected(const QPointF& p) const
+        bool isSelected(const QList<MainViewModel::ColorSerieItem>& s, const QPointF& p) const
         {
-            int key = toKey(p);//(int)p.x()*10000*10000+(int)p.y()*10000;
+            int key = toKey(s, p);//(int)p.x()*10000*10000+(int)p.y()*10000;
             return points.contains(key);
         }
     };
 
-    static int toKey(const QPointF& p){
-        return toKey(p.x(), p.y());
+    static int toKey(const QList<MainViewModel::ColorSerieItem>& s, const QPointF& p){
+        return toKey(s, p.x(), p.y());
     };
 
-    static int toKey(qreal x, qreal y){
+    static int toKey(const QList<MainViewModel::ColorSerieItem>& s, qreal x, qreal y){
+//        int i;
+//        for(i=0;i<s.count();i++){
+//            auto j = s[i];
+//            if((j.lab.b-x)<0.00001) continue;
+//            if((j.lab.a-y)<0.00001) continue;
+//            break;
+//        }
+//        //if(i<s.count()) return i;
+//        return i;
         return (int)x*10000*10000+(int)y*10000;
     };
+
+//    static void fromKey(int i, qreal* x, qreal* y){
+//        *y = (i%(10000*10000))/10000;
+//        *x = i/(10000*10000);
+//    };
 
     SelectedItems _selected_rgb;
     SelectedItems _selected_ryb;
@@ -47,16 +61,24 @@ public:
     void set_rgb_serie(const MainViewModel::ColorSerie&m);
     void set_color_serie(const MainViewModel::ColorSerie&m);
     QList<MainViewModel::Rgb> get_selected_color_serie();
+    QList<MainViewModel::Lab> get_color_serie_lab();
     //void Clear_null_serie();
     //void clear_color_serie();
     void setRange(const QRect& r);
     void initRange();
     MainViewModel::Load load();
+
+    void set_selected(QList<int> e);
+    void unselect_all();
+    MainViewModel::Filter1 getFilter1Params();
+    MainViewModel::Filter2 getFilter2Params();
+
 signals:
         void LoadActionTriggered(IMainView *sender);
         void SaveSelectedActionTriggered(IMainView *sender);
         void SQLUpdActionTriggered(IMainView *sender);
         void Filter1ActionTriggered(IMainView *sender);
+        void Filter2ActionTriggered(IMainView *sender);
 private slots:
     void on_pushButton_clear_clicked();
     void on_pushButton_load_clicked();
@@ -66,21 +88,15 @@ private slots:
 
     void on_pushButton_background_toggle_toggled(bool checked);
     void on_pushButton_save_selected_clicked();
-
     void on_radioButton_0_clicked(bool checked);
-
     void on_radioButton_2_clicked(bool checked);
-
     void on_radioButton_1_clicked(bool checked);
-
     void on_radioButton_3_clicked(bool checked);
-
     void on_radioButton_4_clicked(bool checked);
-
-    void on_pushButton_sqlupd_clicked();
-
+    void on_pushButton_sqlupd_clicked();   
+    void on_pushButton_unselect_all_clicked();
     void on_pushButton_filter1_clicked();
-
+    void on_pushButton_filter2_clicked();
 private:
     static const int MAX = 120;
     bool isOwnColor();
@@ -100,9 +116,9 @@ private:
 
 
     void set_serie(QScatterSeries *s, const MainViewModel::ColorSerie &m, QMap<int, QBrush>* map,const SelectedItems& si);
+    void set_map(QScatterSeries *s, const MainViewModel::ColorSerie &m, QMap<int, QBrush>* map,const SelectedItems& si);
     bool get_serie_color(QScatterSeries* s, const QPointF& point,  QMap<int, QBrush>* map, SelectedItems* selected);
     void select_serie_item(QScatterSeries* s, QMap<int, QBrush>* map, const QPointF &point, SelectedItems* selected);
-
 
     //void clear_serie(QScatterSeries *s);
     void setSerieItemColor(QScatterSeries *s, const QPointF &p, QMap<int, QBrush> *map, bool isOwncolor);

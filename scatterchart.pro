@@ -12,6 +12,8 @@ SOURCES += \
     #actions.cpp \
     ciede2000.cpp \
     filehelper.cpp \
+    filters.cpp \
+    friendlycolors.cpp \
     friendlyrgb.cpp \
     geomath.cpp \
     main.cpp \
@@ -28,6 +30,8 @@ HEADERS += \
     #actions.h \
     ciede2000.h \
     filehelper.h \
+    filters.h \
+    friendlycolors.h \
     friendlyrgb.h \
     geomath.h \
     global.h \

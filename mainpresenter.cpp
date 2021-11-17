@@ -5,6 +5,7 @@
 //#include "model.h"
 #include "friendlyrgb.h"
 #include "filehelper.h"
+#include "filters.h"
 
 #include <QFileDialog>
 #include <QDateTime>
@@ -38,6 +39,9 @@ void MainPresenter::appendView(IMainView *w)
 
     QObject::connect(view_obj, SIGNAL(Filter1ActionTriggered(IMainView *)),
                      this, SLOT(processFilter1Action(IMainView *)));
+
+    QObject::connect(view_obj, SIGNAL(Filter2ActionTriggered(IMainView *)),
+                     this, SLOT(processFilter2Action(IMainView *)));
 
     //SaveSelectedActionTriggeredprocessSaveSelectedActionTriggered
 //    QObject::connect(&(*view_obj), &IMainView::LoadActionTriggered,
@@ -632,4 +636,18 @@ bool MainPresenter::InsertMarkerCorrectionItems(int markerCorrectionId, const QL
 
 void MainPresenter::processFilter1Action(IMainView *sender){
     qDebug() << "processFilter1Action";
+    //auto m = sender->get_color_serie_lab();
+    auto m = sender->getFilter1Params();
+    auto e = Filters::Filter1(m);
+    qDebug() << "filtered: "+QString::number(e.count());
+    sender->set_selected(e);
+}
+
+void MainPresenter::processFilter2Action(IMainView *sender){
+    qDebug() << "processFilter2Action";
+    //auto m = sender->get_color_serie_lab();
+    auto m = sender->getFilter2Params();
+    auto e = Filters::Filter2(m);
+    qDebug() << "filtered: "+QString::number(e.count());
+    sender->set_selected(e);
 }
