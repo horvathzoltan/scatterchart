@@ -33,8 +33,8 @@ private:
         QString colorint;
         int flag;
     };
-    bool InsertMarkerColor(int markerId,const QList<SQLFc>& fcs);
-    bool DeleteMarkerColors(int markerId);
+    QString InsertMarkerColor(int markerId,const QList<SQLFc>& fcs);
+    QString DeleteMarkerColors(int markerId);
     int GetMarkerCorrectionId(int markerId);
     bool InsertMarkerCorrection(int markerId,
                            const QString& name,
