@@ -254,13 +254,19 @@ void MainPresenter::processSQLUpdAction(IMainView *sender){
         for(auto&f:fcs){
             f.colorint = f.rgb.toDecString();
         }
-        DeleteMarkerColors(markerId);
-        InsertMarkerColor(markerId, fcs);
-    }
+        QString r = "insert "+fcfilename+":\n--begin";
+        if(!r.isEmpty()) r+='\n';
+        r += DeleteMarkerColors(markerId);
+        if(!r.isEmpty()) r+='\n';
+        r += InsertMarkerColor(markerId, fcs);
+        if(!r.isEmpty()) r+='\n';
+        r += "--end\n";
+        qDebug() << r;
+    }    
 
     if(!ufcs.isEmpty()){
         int markerCorrId = GetMarkerCorrectionId(markerId);
-        if(markerCorrId==-1){
+        if(markerCorrId==-1){            
             InsertMarkerCorrection(markerId, ufcfilename, "corrections for "+ufcfilename);
             markerCorrId = GetMarkerCorrectionId(markerId);
         }
@@ -395,10 +401,12 @@ auto MainPresenter::GetMarkerCorrectionId(int markerId)->int
     return id;
 }
 
-bool MainPresenter::InsertMarkerColor(int markerId,const QList<SQLFc>& fcs){
-    if(fcs.isEmpty()) return -1;
+QString MainPresenter::InsertMarkerColor(int markerId,const QList<SQLFc>& fcs){
+    QString r;
+    if(fcs.isEmpty()) return r;
     int id=-1;
     SQLHelper sqlh;
+
     static const QString CONN = QStringLiteral("conn1");
     {
         auto db = sqlh.Connect(settings._sql_settings, CONN);
@@ -414,10 +422,12 @@ bool MainPresenter::InsertMarkerColor(int markerId,const QList<SQLFc>& fcs){
                 QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
                 for(auto&f:fcs){
                     QSqlQuery query(db);
-                    QString cmd = QStringLiteral("INSERT INTO exm.MarkerColors (MarkerId, Color, MarkerColorType, LastModified) VALUES  (%1, '%2', %3, '%4')")
-                                      .arg(markerId).arg(f.colorint).arg(f.flag).arg(most);
-                    qDebug() << "cmd: "+cmd;
+                    QString cmd = QStringLiteral("INSERT INTO exm.MarkerColors (MarkerId, Color, MarkerColorType) VALUES  (%1, '%2', %3)")
+                                      .arg(markerId).arg(f.colorint).arg(f.flag);
+                    //qDebug() << "cmd: "+cmd;
                     db_ok = query.exec(cmd);
+                    if(!r.isEmpty()) r+='\n';
+                    r+=cmd;
 //                    if(db_ok)
 //                    {
 //                        rows = 0;
@@ -441,12 +451,13 @@ bool MainPresenter::InsertMarkerColor(int markerId,const QList<SQLFc>& fcs){
         }
     }
     QSqlDatabase::removeDatabase(CONN);
-    return id;
+    return r;
 }
 
-bool MainPresenter::DeleteMarkerColors(int markerId){
+QString MainPresenter::DeleteMarkerColors(int markerId){
     int id=-1;
     SQLHelper sqlh;
+    QString r;
     static const QString CONN = QStringLiteral("conn1");
     {
         auto db = sqlh.Connect(settings._sql_settings, CONN);
@@ -464,8 +475,10 @@ bool MainPresenter::DeleteMarkerColors(int markerId){
                 QSqlQuery query(db);
                 QString cmd = QStringLiteral("DELETE FROM exm.MarkerColors WHERE MarkerId=%1")
                                   .arg(markerId);
-                qDebug() << "cmd: "+cmd;
+                //qDebug() << "cmd: "+cmd;
                 db_ok = query.exec(cmd);
+                if(!r.isEmpty()) r+='\n';
+                r+=cmd;
 //                if(db_ok)
 //                {
 //                    rows = 0;
@@ -487,7 +500,7 @@ bool MainPresenter::DeleteMarkerColors(int markerId){
         }
     }
     QSqlDatabase::removeDatabase(CONN);
-    return id;
+    return r;
 }
 
 bool MainPresenter::InsertMarkerCorrection(int markerId,
@@ -604,8 +617,8 @@ bool MainPresenter::InsertMarkerCorrectionItems(int markerCorrectionId, const QL
                 QString most = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
                 for(auto&f:fcs){
                     QSqlQuery query(db);
-                    QString cmd = QStringLiteral("INSERT INTO exm.MarkerCorrectionItems (MarkerCorrectionId, Color, MarkerColorType, LastModified) VALUES  (%1, '%2', %3, '%4')")
-                                      .arg(markerCorrectionId).arg(f.colorint).arg(f.flag).arg(most);
+                    QString cmd = QStringLiteral("INSERT INTO exm.MarkerCorrectionItems (MarkerCorrectionId, Color, MarkerColorType) VALUES  (%1, '%2', %3)")
+                                      .arg(markerCorrectionId).arg(f.colorint).arg(f.flag);
                     qDebug() << "cmd: "+cmd;
                     db_ok = query.exec(cmd);
                     //                    if(db_ok)
